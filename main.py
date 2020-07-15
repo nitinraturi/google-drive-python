@@ -37,11 +37,15 @@ def get_gdrive_service():
     return build('drive', 'v3', credentials=creds)
 
 # Function for download the google drive files
-def downloadFile(file_id):
+def downloadFile(file_id, path=None):
     global service;
     fileName = getMetaData(file_id)['name']
-    # get the file object in write binary mode
-    fileObj = getFileObject(fileName)
+    if path is None:
+        # get the file object in write binary mode
+        fileObj = getFileObject(fileName)
+    else:
+        # get the file object in write binary mode
+        fileObj = getFileObjectForFolder(fileName, path)
     # call the service api for downloading the media
     request = service.files().get_media(fileId=file_id)
     # request the media downloader
@@ -56,39 +60,57 @@ def downloadFile(file_id):
 def getFileObject(filename):
     return open(os.path.join(os.getcwd(), filename), 'wb')
 
+# Function for getting the file object opened
+def getFileObjectForFolder(filename, path):
+    print(path+filename)
+    return open(path+'/'+filename, 'wb')
+
 # Function for the listing the google drive files
-def list_files(items):
+def list_files(query_string, path=None):
     """given items returned by Google Drive API, prints them in a tabular way"""
+    global service;
+    items = service.files().list(
+        q=query_string,
+        pageSize=10, fields="nextPageToken, files(id, name, mimeType, size, parents, modifiedTime)").execute()
+    # get the results
+    items = items.get('files', [])
     if not items:
         # empty drive
         print('No files found.')
     else:
         rows = []
         for item in items:
-            # input(">")
-            # get the File ID
-            id = item["id"]
-            downloadFile(id)
-            # get the name of file
-            name = item["name"]
-            try:
-                # parent directory ID
-                parents = item["parents"]
-            except:
-                # has no parrents
-                parents = "N/A"
-            try:
-                # get the size in nice bytes format (KB, MB, etc.)
-                size = get_size_format(int(item["size"]))
-            except:
-                # not a file, may be a folder
-                size = "N/A"
-            # get the Google Drive type of file
-            mime_type = item["mimeType"]
-            # get last modified date time
-            modified_time = item["modifiedTime"]
-            # append everything to the list
-            rows.append((id, name, parents, size, mime_type, modified_time))
+            if item['mimeType'] == 'application/vnd.google-apps.folder':
+                if not os.path.isdir(os.path.join(os.getcwd(), item['name'])):
+                    os.mkdir(os.path.join(os.getcwd(), item['name']))
+                list_files(query_string="'{0}' in parents".format(item['id']), path=os.path.join(os.getcwd(), item['name']))
+            else:
+                # get the File ID
+                id = item["id"]
+                if path is None:
+                    downloadFile(id)
+                else:
+                    downloadFile(id, path)
+                # get the name of file
+                name = item["name"]
+                try:
+                    # parent directory ID
+                    parents = item["parents"]
+                except:
+                    # has no parrents
+                    parents = "N/A"
+                try:
+                    # get the size in nice bytes format (KB, MB, etc.)
+                    size = get_size_format(int(item["size"]))
+                except:
+                    # not a file, may be a folder
+                    size = "N/A"
+                # get the Google Drive type of file
+                mime_type = item["mimeType"]
+                # get last modified date time
+                modified_time = item["modifiedTime"]
+                # append everything to the list
+                rows.append((id, name, parents, size, mime_type, modified_time))
         print("Files:")
         # convert to a human readable table
         table = tabulate(
@@ -136,13 +158,8 @@ def main(url):
         # Call the Drive v3 API
         folderId = parseID(url)
         q = "'{0}' in parents".format(folderId)
-        results = service.files().list(
-            q=q,
-            pageSize=10, fields="nextPageToken, files(id, name, mimeType, size, parents, modifiedTime)").execute()
-        # get the results
-        items = results.get('files', [])
         # list all 20 files & folders
-        list_files(items)
+        list_files(q)
     else:
         print("Please give the url of a folder")
 
