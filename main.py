@@ -1,9 +1,10 @@
 import pickle
-import os
+import os, io
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from tabulate import tabulate
+from googleapiclient.http import MediaIoBaseDownload
 
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly']
@@ -31,6 +32,16 @@ def get_gdrive_service():
     # return Google Drive API service
     return build('drive', 'v3', credentials=creds)
 
+def downloadFile(file_id):
+    global service;
+    request = service.files().get_media(fileId=file_id)
+    fh = io.BytesIO()
+    downloader = MediaIoBaseDownload(fh, request)
+    done = False
+    while done is False:
+        status, done = downloader.next_chunk()
+        print("Download {0}.".format(str(int(status.progress())*100)))
+        # print "Download %d%%." % int(status.progress() * 100)
 
 def list_files(items):
     """given items returned by Google Drive API, prints them in a tabular way"""
@@ -40,8 +51,10 @@ def list_files(items):
     else:
         rows = []
         for item in items:
+            # input(">")
             # get the File ID
             id = item["id"]
+            downloadFile(id)
             # get the name of file
             name = item["name"]
             try:
@@ -69,13 +82,20 @@ def list_files(items):
         # print the table
         print("table",table)
 
-def main():
+def parseID(url):
+    return url.split('/')[-1].split('?')[0]
+
+def main(url):
     """Shows basic usage of the Drive v3 API.
     Prints the names and ids of the first 5 files the user has access to.
     """
+    global service;
     service = get_gdrive_service()
     # Call the Drive v3 API
+    folderId = parseID(url)
+    q = "'{0}' in parents".format(folderId)
     results = service.files().list(
+        q=q,
         pageSize=10, fields="nextPageToken, files(id, name, mimeType, size, parents, modifiedTime)").execute()
     # get the results
     items = results.get('files', [])
@@ -84,4 +104,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    global service;
+    url = "https://drive.google.com/drive/folders/1o0WwdXbwdxMNw8fnqb7uPphGBOWwr60h?usp=sharing";
+    main(url)
