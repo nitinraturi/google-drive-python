@@ -5,9 +5,11 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from tabulate import tabulate
 from googleapiclient.http import MediaIoBaseDownload
+from decouple import config
+
 
 # If modifying these scopes, delete the file token.pickle.
-SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly']
+SCOPES = ['https://www.googleapis.com/auth/drive']
 
 
 def get_gdrive_service():
@@ -85,25 +87,40 @@ def list_files(items):
 def parseID(url):
     return url.split('/')[-1].split('?')[0]
 
+def checkFolderURL(service, url):
+    folderId = parseID(url)
+    try:
+        file = service.files().get(fileId=folderId).execute()
+        if file['mimeType'] == 'application/vnd.google-apps.folder':
+            return True
+        else:
+            return False
+    except Exception as e:
+        pass
+
 def main(url):
     """Shows basic usage of the Drive v3 API.
     Prints the names and ids of the first 5 files the user has access to.
     """
     global service;
     service = get_gdrive_service()
-    # Call the Drive v3 API
-    folderId = parseID(url)
-    q = "'{0}' in parents".format(folderId)
-    results = service.files().list(
-        q=q,
-        pageSize=10, fields="nextPageToken, files(id, name, mimeType, size, parents, modifiedTime)").execute()
-    # get the results
-    items = results.get('files', [])
-    # list all 20 files & folders
-    list_files(items)
+    if checkFolderURL(service, url):
+        # Call the Drive v3 API
+        folderId = parseID(url)
+        q = "'{0}' in parents".format(folderId)
+        results = service.files().list(
+            q=q,
+            pageSize=10, fields="nextPageToken, files(id, name, mimeType, size, parents, modifiedTime)").execute()
+        # get the results
+        items = results.get('files', [])
+        # list all 20 files & folders
+        list_files(items)
+    else:
+        print("Please give the url of a folder")
 
 
 if __name__ == "__main__":
     global service;
-    url = "https://drive.google.com/drive/folders/1o0WwdXbwdxMNw8fnqb7uPphGBOWwr60h?usp=sharing";
+    # url = "https://drive.google.com/drive/folders/1o0WwdXbwdxMNw8fnqb7uPphGBOWwr60h?usp=sharing";
+    url = config('FOLDER_URL', cast=str)
     main(url)
