@@ -7,12 +7,13 @@ from tabulate import tabulate
 from googleapiclient.http import MediaIoBaseDownload
 from decouple import config
 from hurry.filesize import size, verbose
+from apiclient import errors
 
 
-# If modifying these scopes, delete the file token.pickle.
+# Scope of getting the full access from google drive of a user
 SCOPES = ['https://www.googleapis.com/auth/drive']
 
-
+# Function for getting the service object of google drive
 def get_gdrive_service():
     creds = None
     # The file token.pickle stores the user's access and refresh tokens, and is
@@ -35,17 +36,27 @@ def get_gdrive_service():
     # return Google Drive API service
     return build('drive', 'v3', credentials=creds)
 
+# Function for download the google drive files
 def downloadFile(file_id):
     global service;
+    fileName = getMetaData(file_id)['name']
+    # get the file object in write binary mode
+    fileObj = getFileObject(fileName)
+    # call the service api for downloading the media
     request = service.files().get_media(fileId=file_id)
-    fh = io.BytesIO()
-    downloader = MediaIoBaseDownload(fh, request)
+    # request the media downloader
+    downloader = MediaIoBaseDownload(fileObj, request)
     done = False
     while done is False:
         status, done = downloader.next_chunk()
-        print("Download {0}.".format(str(int(status.progress())*100)))
-        # print "Download %d%%." % int(status.progress() * 100)
+        # Track the downloading progress
+        print("Download Progress {0}.".format(str(int(status.progress())*100)))
 
+# Function for getting the file object opened
+def getFileObject(filename):
+    return open(os.path.join(os.getcwd(), filename), 'wb')
+
+# Function for the listing the google drive files
 def list_files(items):
     """given items returned by Google Drive API, prints them in a tabular way"""
     if not items:
@@ -85,16 +96,28 @@ def list_files(items):
         # print the table
         print("table",table)
 
+# Function for formatting the file sizes
 def get_size_format(file_size):
     return size(file_size, system=verbose)
 
+# Function for retrieving the ID from given url
 def parseID(url):
     return url.split('/')[-1].split('?')[0]
 
-def checkFolderURL(service, url):
+# Function for retrieving the files attributes
+def getMetaData(fileId):
+    global service;
+    try:
+        return service.files().get(fileId=fileId).execute()
+    except errors.HttpError as e:
+        print("An error occurered {}".format(e))
+
+# Function for check the url is of folder
+def checkFolderURL(url):
+    global service;
     folderId = parseID(url)
     try:
-        file = service.files().get(fileId=folderId).execute()
+        file = getMetaData(folderId)
         if file['mimeType'] == 'application/vnd.google-apps.folder':
             return True
         else:
@@ -102,13 +125,14 @@ def checkFolderURL(service, url):
     except Exception as e:
         pass
 
+# Main entry point
 def main(url):
     """Shows basic usage of the Drive v3 API.
     Prints the names and ids of the first 5 files the user has access to.
     """
     global service;
     service = get_gdrive_service()
-    if checkFolderURL(service, url):
+    if checkFolderURL(url):
         # Call the Drive v3 API
         folderId = parseID(url)
         q = "'{0}' in parents".format(folderId)
@@ -125,5 +149,6 @@ def main(url):
 
 if __name__ == "__main__":
     global service;
+    # Folder url from environment file
     url = config('FOLDER_URL', cast=str)
     main(url)
