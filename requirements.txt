@@ -4,3 +4,7 @@ google-auth==1.19.0
 google-auth-httplib2==0.0.4
 google-auth-oauthlib==0.4.1
 googleapis-common-protos==1.52.0
+python-decouple==3.3
+tabulate==0.8.7
+hurry.filesize==0.9
+
