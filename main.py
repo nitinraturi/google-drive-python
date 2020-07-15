@@ -6,6 +6,7 @@ from google.auth.transport.requests import Request
 from tabulate import tabulate
 from googleapiclient.http import MediaIoBaseDownload
 from decouple import config
+from hurry.filesize import size, verbose
 
 
 # If modifying these scopes, delete the file token.pickle.
@@ -84,6 +85,9 @@ def list_files(items):
         # print the table
         print("table",table)
 
+def get_size_format(file_size):
+    return size(file_size, system=verbose)
+
 def parseID(url):
     return url.split('/')[-1].split('?')[0]
 
@@ -121,6 +125,5 @@ def main(url):
 
 if __name__ == "__main__":
     global service;
-    # url = "https://drive.google.com/drive/folders/1o0WwdXbwdxMNw8fnqb7uPphGBOWwr60h?usp=sharing";
     url = config('FOLDER_URL', cast=str)
     main(url)
