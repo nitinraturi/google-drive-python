@@ -4,3 +4,5 @@ token.pickle
 __pycache__
 venv
 venv/
+downloads/*
+.vscode/

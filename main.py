@@ -54,11 +54,11 @@ def downloadFile(file_id, path=None):
     while done is False:
         status, done = downloader.next_chunk()
         # Track the downloading progress
-        print("Download Progress {0}.".format(str(int(status.progress())*100)))
+        print("[*]Download Progress {0}% - {1}.".format(str(int(status.progress())*100),fileName))
 
 # Function for getting the file object opened
 def getFileObject(filename):
-    return open(os.path.join(os.getcwd(), filename), 'wb')
+    return open(os.path.join(os.getcwd(),"downloads", filename), 'wb')
 
 # Function for getting the file object opened
 def getFileObjectForFolder(filename, path):
