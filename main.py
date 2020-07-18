@@ -114,6 +114,9 @@ class Drive():
 
         nextPageToken=items.get('nextPageToken')
         items = items.get('files', [])
+        if path is None:
+            path = os.path.join(os.getcwd(),"downloads")
+
         if not items:
             # empty drive
             print(f'No files found in query_string "{query_string}".')
@@ -121,7 +124,7 @@ class Drive():
             rows = []
             for item in items:
                 if item['mimeType'] == 'application/vnd.google-apps.folder':
-                    folder = os.path.join(os.getcwd(), item['name'])
+                    folder = os.path.join(path, item['name'])
                     if not os.path.isdir(folder):
                         os.mkdir(folder)
                     self.list_files(query_string="'{0}' in parents".format(
